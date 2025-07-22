@@ -1,0 +1,10 @@
+Flask
+Flask-CORS
+Flask-SQLAlchemy
+transformers
+torch
+PyMuPDF
+python-docx
+openai==0.27.0
+psycopg2-binary
+google-generativeai

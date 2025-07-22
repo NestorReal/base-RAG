@@ -1,0 +1,33 @@
+# Python bytecode and cache
+__pycache__/
+*.pyc
+
+# Instance folder (typically used by Flask)
+instance/
+
+# Environment variables and secrets
+.env
+.env.test
+
+# Operating system files
+.DS_Store
+
+# Virtual environment
+venv/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Distribution/packaging
+dist/
+build/
+*.egg-info/
+
+# Test coverage
+.coverage
+htmlcov/
+
+# Local development
+*.log
+.pytest_cache/

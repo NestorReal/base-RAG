@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Documentos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1, h2 {
+            color: #0056b3;
+        }
+        section {
+            background-color: #fff;
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        form div {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], textarea {
+            width: calc(100% - 22px); /* Account for padding and border */
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        input[type="file"] {
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .document-item, .response-item {
+            background-color: #e9f7ff;
+            border: 1px solid #cce7ff;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 200px; /* Limit height for long texts */
+            overflow-y: auto; /* Add scroll for overflow */
+        }
+        .status-message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status-message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+        .status-message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+        .status-message.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border-color: #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sistema de Gestión de Documentos</h1>
+
+    <section id="upload-section">
+        <h2>Subir Nuevo Documento</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div>
+                <label for="fileInput">Seleccionar Documento (PDF, DOC, DOCX):</label>
+                <input type="file" id="fileInput" name="file" accept=".pdf,.doc,.docx" required>
+            </div>
+            <div>
+                <button type="submit">Subir Documento</button>
+            </div>
+            <div id="uploadStatus" class="status-message"></div>
+        </form>
+    </section>
+
+    <section id="view-section">
+        <h2>Ver Documentos Subidos</h2>
+        <button id="loadDocumentsBtn">Cargar Documentos</button>
+        <div id="documentsStatus" class="status-message"></div>
+        <div id="documentsList">
+            </div>
+    </section>
+
+    <section id="query-section">
+        <h2>Consultar Documentos</h2>
+        <form id="queryForm">
+            <div>
+                <label for="queryInput">Tu Consulta:</label>
+                <textarea id="queryInput" placeholder="Introduce tu pregunta aquí..." rows="4" required></textarea>
+            </div>
+            <div>
+                <button type="submit">Enviar Consulta</button>
+            </div>
+            <div id="queryStatus" class="status-message"></div>
+            <h3>Respuestas:</h3>
+            <div id="queryResults">
+                </div>
+        </form>
+    </section>
+
+    <script>
+        // Obtener referencias a los elementos del DOM
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const loadDocumentsBtn = document.getElementById('loadDocumentsBtn');
+        const documentsList = document.getElementById('documentsList');
+        const documentsStatus = document.getElementById('documentsStatus');
+        const queryForm = document.getElementById('queryForm');
+        const queryStatus = document.getElementById('queryStatus');
+        const queryResults = document.getElementById('queryResults');
+
+        // Función para manejar la carga de archivos
+        uploadForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Prevenir el envío tradicional del formulario
+            uploadStatus.textContent = 'Subiendo documento...';
+            uploadStatus.className = 'status-message info';
+
+            const formData = new FormData(uploadForm);
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json(); // Asumir que la respuesta es JSON
+                if (response.ok) { // Código de estado HTTP 2xx
+                    uploadStatus.textContent = data.message;
+                    uploadStatus.className = 'status-message success';
+                    // Opcional: recargar la lista de documentos después de una subida exitosa
+                    loadDocuments();
+                } else {
+                    uploadStatus.textContent = `Error: ${data.error || 'Algo salió mal'}`;
+                    uploadStatus.className = 'status-message error';
+                }
+            } catch (error) {
+                uploadStatus.textContent = `Error de red: ${error.message}`;
+                uploadStatus.className = 'status-message error';
+            }
+        });
+
+        // Función para cargar y mostrar los documentos
+        loadDocumentsBtn.addEventListener('click', loadDocuments);
+
+        async function loadDocuments() {
+            documentsList.innerHTML = ''; // Limpiar documentos anteriores
+            documentsStatus.textContent = 'Cargando documentos...';
+            documentsStatus.className = 'status-message info';
+
+            try {
+                // Hacer una solicitud GET a tu endpoint /documents
+                const response = await fetch('/documents');
+                const data = await response.json(); // Asumir que la respuesta es JSON
+
+                if (response.ok) {
+                    if (data.documents && data.documents.length > 0) {
+                        documentsStatus.textContent = `Se encontraron ${data.total} documentos.`;
+                        documentsStatus.className = 'status-message success';
+                        data.documents.forEach(doc => {
+                            const div = document.createElement('div');
+                            div.className = 'document-item';
+                            // Mostrar una porción del texto para evitar sobrecargar la vista
+                            const textPreview = doc.text ? doc.text.substring(0, 500) + (doc.text.length > 500 ? '...' : '') : 'No text available';
+                            div.innerHTML = `
+                                <strong>ID:</strong> ${doc.id}<br>
+                                <strong>Texto (fragmento):</strong> <pre>${textPreview}</pre>
+                            `;
+                            documentsList.appendChild(div);
+                        });
+                    } else {
+                        documentsStatus.textContent = 'No se encontraron documentos.';
+                        documentsStatus.className = 'status-message info';
+                    }
+                } else {
+                    documentsStatus.textContent = `Error al cargar documentos: ${data.error || 'Algo salió mal'}`;
+                    documentsStatus.className = 'status-message error';
+                }
+            } catch (error) {
+                documentsStatus.textContent = `Error de red al cargar documentos: ${error.message}`;
+                documentsStatus.className = 'status-message error';
+            }
+        }
+
+        // Función para manejar el envío de consultas
+        queryForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Prevenir el envío tradicional del formulario
+            queryStatus.textContent = 'Enviando consulta...';
+            queryStatus.className = 'status-message info';
+            queryResults.innerHTML = ''; // Limpiar resultados anteriores
+
+            const queryText = document.getElementById('queryInput').value.trim();
+            if (!queryText) {
+                queryStatus.textContent = 'Por favor, introduce una consulta.';
+                queryStatus.className = 'status-message error';
+                return;
+            }
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: queryText }) // Enviar la consulta como JSON
+                });
+                const data = await response.json(); // Asumir que la respuesta es JSON
+
+                if (response.ok) {
+                    queryStatus.textContent = 'Consulta exitosa!';
+                    queryStatus.className = 'status-message success';
+                    if (data.responses && data.responses.length > 0) {
+                        data.responses.forEach((res, index) => {
+                            const div = document.createElement('div');
+                            div.className = 'response-item';
+                            div.innerHTML = `<strong>Respuesta ${index + 1}:</strong> <pre>${res}</pre>`;
+                            queryResults.appendChild(div);
+                        });
+                        if (data.context) {
+                             const contextDiv = document.createElement('div');
+                             contextDiv.className = 'response-item';
+                             const contextPreview = data.context.substring(0, 1000) + (data.context.length > 1000 ? '...' : '');
+                             contextDiv.innerHTML = `<strong>Contexto Utilizado:</strong> <pre>${contextPreview}</pre>`;
+                             queryResults.appendChild(contextDiv);
+                        }
+                    } else {
+                        queryResults.textContent = 'No se generaron respuestas.';
+                        queryResults.className = 'status-message info';
+                    }
+                } else {
+                    queryStatus.textContent = `Error en la consulta: ${data.error || 'Algo salió mal'}`;
+                    queryStatus.className = 'status-message error';
+                }
+            } catch (error) {
+                queryStatus.textContent = `Error de red al consultar: ${error.message}`;
+                queryStatus.className = 'status-message error';
+            }
+        });
+
+        // Carga inicial de documentos al cargar la página
+        document.addEventListener('DOMContentLoaded', loadDocuments);
+    </script>
+</body>
+</html>
